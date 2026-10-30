@@ -202,7 +202,10 @@ function run() {
     timer = null
     if (syncing && Date.now() - syncSince < 200) return schedule()
     const buffer = term.buffer.active
-    let s = "\x1b[?2026h\x1b[?25l" + forward
+    // Autowrap stays off while repainting: a glyph the real terminal draws
+    // wider than xterm.js measured (some emoji) must not wrap a full row and
+    // scroll the screen, which would shift every line after it.
+    let s = "\x1b[?2026h\x1b[?25l\x1b[?7l" + forward
     forward = ""
 
     if (buffer.type !== lastBuffer) {
@@ -231,7 +234,7 @@ function run() {
     }
     s += `\x1b[${buffer.cursorY + 1};${buffer.cursorX + 1}H`
     if (cursorVisible) s += "\x1b[?25h"
-    out.write(s + "\x1b[?2026l")
+    out.write(s + "\x1b[?7h\x1b[?2026l")
   }
 
   function schedule() {

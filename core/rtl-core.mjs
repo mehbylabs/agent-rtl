@@ -62,12 +62,20 @@ const FORMS = {
   0x0649: [0xfeef, 0xfef0],
   0x064a: [0xfef1, 0xfef2, 0xfef3, 0xfef4],
   0x0671: [0xfb50, 0xfb51],
+  0x0679: [0xfb66, 0xfb67, 0xfb68, 0xfb69],
   0x067e: [0xfb56, 0xfb57, 0xfb58, 0xfb59],
   0x0686: [0xfb7a, 0xfb7b, 0xfb7c, 0xfb7d],
+  0x0688: [0xfb88, 0xfb89],
+  0x0691: [0xfb8c, 0xfb8d],
   0x0698: [0xfb8a, 0xfb8b],
+  0x06a4: [0xfb6a, 0xfb6b, 0xfb6c, 0xfb6d],
   0x06a9: [0xfb8e, 0xfb8f, 0xfb90, 0xfb91],
   0x06af: [0xfb92, 0xfb93, 0xfb94, 0xfb95],
+  0x06ba: [0xfb9e, 0xfb9f],
+  0x06be: [0xfbaa, 0xfbab, 0xfbac, 0xfbad],
+  0x06c1: [0xfba6, 0xfba7, 0xfba8, 0xfba9],
   0x06cc: [0xfbfc, 0xfbfd, 0xfbfe, 0xfbff],
+  0x06d2: [0xfbae, 0xfbaf],
 }
 
 export function isRtl(cp) {
@@ -98,16 +106,19 @@ function pinLtrTokens(text) {
   })
 }
 
-// A UI marker that opens a region (prompt arrow, bullet, dash) followed by a
-// space stays where the host drew it instead of moving to the RTL end.
-// Brackets are not markers: they belong to the text.
+// A UI marker that opens a region (prompt arrow, bullet, dash, or up to three
+// of one symbol, such as a markdown "##") followed by a space stays where the
+// host drew it instead of moving to the RTL end. Brackets are not markers:
+// they belong to the text.
 const MARKER = /^[\p{S}\p{Pd}\p{Po}\p{Pi}\p{Pf}]$/u
 
 function skipMarker(units, cps, from, to) {
-  if (to - from < 3 || cps[from + 1] !== 0x20 || !MARKER.test(units[from].text)) return from
-  from += 2
-  while (from < to && cps[from] === 0x20) from++
-  return from
+  if (!MARKER.test(units[from].text)) return from
+  let end = from + 1
+  while (end < to && end - from < 3 && units[end].text === units[from].text) end++
+  if (end + 1 >= to || cps[end] !== 0x20) return from
+  while (end < to && cps[end] === 0x20) end++
+  return end
 }
 
 // [from, to) glyph ranges, trimmed of edge spaces.

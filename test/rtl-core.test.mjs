@@ -57,6 +57,13 @@ test("a leading prompt marker or bullet stays on the left", () => {
   assert.equal(paint("> مرحبا").normalize("NFKC"), "> ابحرم")
   assert.equal(paint("• نعم").normalize("NFKC"), "• معن")
   assert.equal(paint("(نعم) لا").normalize("NFKC"), "ال (معن)")
+  assert.equal(paint("## ١. فقرات").normalize("NFKC"), "## تارقف .١")
+})
+
+test("Urdu and Maghrebi letters join too", () => {
+  // یہ: farsi yeh initial, heh goal final; ڤي: veh initial, yeh final.
+  assert.deepEqual(hex(paint("یہ")), ["FBA7", "FBFE"])
+  assert.deepEqual(hex(paint("ڤي")), ["FEF2", "FB6C"])
 })
 
 test("rows without RTL are left alone", () => {
