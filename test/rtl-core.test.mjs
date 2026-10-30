@@ -32,6 +32,13 @@ test("English, commands and paths stay left to right inside Arabic", () => {
   assert.equal(painted, "src/index.ts مث npm install لغش")
 })
 
+test("paths, URLs, flags and versions stay whole and left to right", () => {
+  assert.equal(paint("شغّل ./install.sh الآن").normalize("NFKC"), "نآلا ./install.sh لغّش")
+  assert.equal(paint("الملف هو src/core/rtl-core.mjs.").normalize("NFKC"), ".src/core/rtl-core.mjs وه فلملا")
+  assert.equal(paint("افتح https://github.com/mehbylabs الآن").normalize("NFKC"), "نآلا https://github.com/mehbylabs حتفا")
+  assert.equal(paint("استخدم --no-alias هنا").normalize("NFKC"), "انه --no-alias مدختسا")
+})
+
 test("brackets mirror in RTL runs", () => {
   assert.equal(paint("(تجربة)").normalize("NFKC"), "(ةبرجت)")
 })

@@ -85,6 +85,19 @@ function isFrame(cp) {
 
 const base = (unit) => unit.text.codePointAt(0) ?? 0x20
 
+// Technical tokens that must stay left to right as one piece: URLs, paths
+// (./install.sh, src/core/x.mjs), dotted names and versions, and flags. Their
+// slashes and dots are neutral in UAX #9 and would otherwise drift to the RTL
+// side. Sentence punctuation after a token stays outside it.
+const LTR_TOKEN = /(?:https?:\/\/|www\.)\S+|[~.]{0,2}\/?[\w@~-]*\/[\w@.\/~-]*|[\w@-]+(?:\.[\w@-]+)+|--?[A-Za-z][\w-]*/g
+
+function pinLtrTokens(text) {
+  return text.replace(LTR_TOKEN, (token) => {
+    const core = token.replace(/[.,:;!?]+$/, "")
+    return "a".repeat(core.length) + token.slice(core.length)
+  })
+}
+
 // A UI marker that opens a region (prompt arrow, bullet, dash) followed by a
 // space stays where the host drew it instead of moving to the RTL end.
 // Brackets are not markers: they belong to the text.
@@ -163,6 +176,7 @@ export function planRow(units, { glyphs: swap = true } = {}) {
     // letter when that is a BMP code point, a neutral placeholder otherwise.
     let text = ""
     for (let i = from; i < to; i++) text += cps[i] <= 0xffff ? String.fromCharCode(cps[i]) : OBJECT
+    text = pinLtrTokens(text)
     const levels = bidi.getEmbeddingLevels(text, "auto")
     const order = Array.from({ length: to - from }, (_, i) => from + i)
     for (const [a, b] of bidi.getReorderSegments(text, levels)) {
