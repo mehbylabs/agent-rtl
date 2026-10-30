@@ -19,7 +19,7 @@ keep the original text.
 ## Install
 
 ```bash
-git clone https://github.com/MohamedElhedi-BenYedder/agent-rtl.git && cd agent-rtl
+git clone https://github.com/mehbylabs/agent-rtl.git && cd agent-rtl
 ./install.sh
 ```
 
