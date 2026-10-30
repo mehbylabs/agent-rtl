@@ -1,0 +1,16 @@
+{
+  "name": "agent-rtl-wrapper",
+  "private": true,
+  "type": "module",
+  "description": "Runs a terminal agent CLI through a virtual terminal and repaints it with right-to-left text fixed",
+  "bin": {
+    "agent-rtl": "bin/agent-rtl.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.18",
+    "@xterm/headless": "6.0.0"
+  }
+}

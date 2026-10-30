@@ -1,0 +1,10 @@
+{
+  "name": "agent-rtl",
+  "private": true,
+  "type": "module",
+  "description": "Right-to-left Arabic, Persian and Hebrew for terminal coding agents (Claude Code, opencode, Codex, agy)",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.mjs && bash test/install.test.sh"
+  }
+}
