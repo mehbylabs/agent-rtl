@@ -1,17 +1,36 @@
-# agent-rtl
+<p align="center">
+  <img src="docs/assets/hero.jpg" alt="agent-rtl: right-to-left Arabic, Persian and Hebrew for terminal coding agents" width="100%">
+</p>
 
-Right-to-left **Arabic, Persian and Hebrew** in terminal coding agents:
-**Claude Code, opencode, Codex and agy (Antigravity CLI)**.
+<p align="center">
+  <b>Right-to-left Arabic, Persian and Hebrew in terminal coding agents</b><br>
+  Claude Code · opencode · Codex · agy (Antigravity CLI)
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#how-each-agent-is-fixed">How it works</a> ·
+  <a href="#terminal-settings">Terminal settings</a> ·
+  <a href="#known-limits">Limits</a>
+</p>
 
 Terminal UIs lay text out left to right and draw one letter per cell. So
-`مرحبا بالعالم` shows reversed, with every letter in its standalone shape
-(`ﻡ ﺭ ﺡ ﺏ ﺍ`). agent-rtl repaints each screen row that holds RTL text:
+`مرحبا بالعالم` shows reversed, with every letter in its standalone shape.
+agent-rtl repaints each screen row that holds RTL text:
 
-- RTL text reads right to left (Unicode Bidirectional Algorithm, UAX #9).
-- Arabic letters are joined (Presentation Forms: start, middle, end or
-  standalone shape, picked from the neighbouring letters).
-- English words, commands, paths and numbers inside Arabic stay left to right.
-- Brackets are mirrored, and prompt markers (`›`, `>`, `•`) stay on the left.
+<p align="center">
+  <img src="docs/assets/before-after.png" alt="Before: Arabic in a terminal shows reversed with disconnected letters. After: with agent-rtl it reads right to left with joined letters, while opencode, Codex, src/core/rtl-core.mjs and ./install.sh stay left to right." width="100%">
+</p>
+
+- **Right to left:** RTL text reads right to left (Unicode Bidirectional
+  Algorithm, UAX #9).
+- **Joined letters:** each Arabic letter takes its start, middle, end or
+  standalone shape from the letters next to it.
+- **Technical text stays intact:** English words, commands, paths
+  (`./install.sh`, `src/core/rtl-core.mjs`), URLs, flags and numbers inside
+  Arabic stay left to right and in one piece.
+- **UI details:** brackets are mirrored, and prompt markers (`›`, `>`, `•`)
+  stay on the left.
 
 Only what's drawn changes. What you type, copy/paste, and what the model reads
 keep the original text.
@@ -64,6 +83,16 @@ needs version 2.1.287 or newer.
 | **opencode** | A TUI plugin copied to `~/.config/opencode/plugins/agent-rtl/`. It hooks `renderer.addPostProcessFn`, which runs on every finished frame before it reaches the terminal, and repaints the RTL rows. | Yes (official plugin API) |
 | **Codex, agy** | Neither has a plugin hook into its screen, so the `agent-rtl` wrapper runs the **official** CLI inside a virtual terminal (xterm.js headless) and repaints each changed row into your real terminal. Lines that scroll off go into your real scrollback. Mouse, paste, alternate-screen and keyboard modes are passed through. | Yes (the CLI itself is not touched) |
 
+Tested on Linux (ARM64) on 2026-10-30, by typing Arabic into each agent's
+prompt, and by reading a real Arabic reply in agy:
+
+| Agent | Version | Result |
+|---|---|---|
+| Claude Code | 2.1.314 | Right-aligned joined preview above the prompt (the mod's design) |
+| opencode | 2.2.2 | Prompt and chat history repainted |
+| Codex | 0.58.0 | Prompt repainted; scrollback kept |
+| agy | 1.4.11 | Prompt and model replies repainted |
+
 For Codex and agy, the installer can add a managed block to your shell rc
 (`~/.zshrc` or `~/.bashrc`) so the plain command goes through the wrapper:
 
@@ -105,6 +134,7 @@ agents/opencode/tui.js   opencode TUI plugin (installed with core/*)
 wrapper/bin/agent-rtl.mjs  Codex / agy wrapper (node-pty + @xterm/headless)
 install.sh               installer / uninstaller
 test/                    npm test: core unit tests + sandboxed installer test
+docs/assets/             README images
 ```
 
 ## Development
