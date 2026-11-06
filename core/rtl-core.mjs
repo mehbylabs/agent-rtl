@@ -96,12 +96,28 @@ const base = (unit) => unit.text.codePointAt(0) ?? 0x20
 // Technical tokens that must stay left to right as one piece: URLs, paths
 // (./install.sh, src/core/x.mjs), dotted names and versions, and flags. Their
 // slashes and dots are neutral in UAX #9 and would otherwise drift to the RTL
-// side. Sentence punctuation after a token stays outside it.
+// side. Sentence punctuation, closing quotes and closing brackets after a
+// token stay outside it, so a bracket around a URL still pairs with its
+// opener; a closing bracket the token itself opened (wiki/Foo_(bar)) stays in.
 const LTR_TOKEN = /(?:https?:\/\/|www\.)\S+|[~.]{0,2}\/?[\w@~-]*\/[\w@.\/~-]*|[\w@-]+(?:\.[\w@-]+)+|--?[A-Za-z][\w-]*/g
+const TRAILING = /[.,:;!?'"»”’]$/
+const OPENER = { ")": "(", "]": "[", "}": "{" }
+
+const count = (text, char) => text.split(char).length - 1
+
+function tokenCore(token) {
+  let core = token
+  for (;;) {
+    const last = core.at(-1)
+    const opener = OPENER[last]
+    if (TRAILING.test(core) || (opener && count(core, opener) < count(core, last))) core = core.slice(0, -1)
+    else return core
+  }
+}
 
 function pinLtrTokens(text) {
   return text.replace(LTR_TOKEN, (token) => {
-    const core = token.replace(/[.,:;!?]+$/, "")
+    const core = tokenCore(token)
     return "a".repeat(core.length) + token.slice(core.length)
   })
 }

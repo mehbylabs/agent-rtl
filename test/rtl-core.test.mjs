@@ -39,6 +39,14 @@ test("paths, URLs, flags and versions stay whole and left to right", () => {
   assert.equal(paint("استخدم --no-alias هنا").normalize("NFKC"), "انه --no-alias مدختسا")
 })
 
+test("a bracketed URL keeps its bracket pair (issue #1)", () => {
+  assert.equal(paint("افتح الرابط (https://example.com) الآن").normalize("NFKC"), "نآلا (https://example.com) طبارلا حتفا")
+  assert.equal(paint("انظر [https://a.com/x] هنا").normalize("NFKC"), "انه [https://a.com/x] رظنا")
+  assert.equal(paint("الرابط (https://example.com).").normalize("NFKC"), ".(https://example.com) طبارلا")
+  // A bracket the URL opened itself is part of the URL.
+  assert.equal(paint("اقرأ https://en.wikipedia.org/wiki/Foo_(bar) الآن").normalize("NFKC"), "نآلا https://en.wikipedia.org/wiki/Foo_(bar) أرقا")
+})
+
 test("brackets mirror in RTL runs", () => {
   assert.equal(paint("(تجربة)").normalize("NFKC"), "(ةبرجت)")
 })
