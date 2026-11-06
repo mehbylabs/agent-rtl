@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # agent-rtl installer: right-to-left Arabic, Persian and Hebrew for terminal
-# coding agents (Claude Code, opencode, Codex, agy). Run ./install.sh --help.
+# coding agents (Claude Code, opencode, Codex, agy). Usually run through
+# `npx -y github:mehbylabs/agent-rtl`; ./install.sh --help for options.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENTS=(claude opencode codex agy)
 BIN_DIR="${AGENT_RTL_BIN:-$HOME/.local/bin}"
+# Where the agent-rtl command and the wrapper live once installed. npx runs
+# this script from a temporary cache, so the runtime is copied here.
+AGENT_RTL_HOME="${AGENT_RTL_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/agent-rtl}"
 OPENCODE_PLUGINS="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins"
 CLAUDE_MARKETPLACE_REPO="ofekbetzalel/claude-code-cli-rtl"
 CLAUDE_MARKETPLACE="claude-code-cli-rtl"
@@ -15,6 +19,7 @@ BLOCK_START="# >>> agent-rtl >>>"
 BLOCK_END="# <<< agent-rtl <<<"
 
 uninstall=0
+status=0
 alias_wrapped=1
 assume_yes=0
 selected=()
@@ -27,12 +32,14 @@ Agents: claude opencode codex agy. With no agent and no --all, a menu asks.
 
   --all          every agent found on this machine
   --uninstall    remove agent-rtl from the chosen agents
+  --status       show which agents have agent-rtl
   --no-alias     codex/agy: only install the agent-rtl command; don't make
                  the plain 'codex' / 'agy' command run through it
   -y, --yes      no questions; take the defaults
   -h, --help     this help
 
-Examples:
+Examples (npx -y github:mehbylabs/agent-rtl takes the same arguments
+after 'install'):
   ./install.sh                  # menu
   ./install.sh --all -y         # everything installed here, no questions
   ./install.sh opencode         # one agent
@@ -91,6 +98,56 @@ menu() {
   done
 }
 
+# ---- The installed copy: the agent-rtl command, the wrapper and this script,
+# plus the list of agents set up, which `agent-rtl update` reinstalls.
+
+runtime_ready=0
+copy_runtime() {
+  [ "$runtime_ready" = 1 ] && return
+  runtime_ready=1
+  [ "$(cd "$AGENT_RTL_HOME" 2>/dev/null && pwd)" = "$REPO" ] && return
+  mkdir -p "$AGENT_RTL_HOME/wrapper"
+  rm -rf "$AGENT_RTL_HOME/bin" "$AGENT_RTL_HOME/core" "$AGENT_RTL_HOME/agents" "$AGENT_RTL_HOME/wrapper/bin"
+  cp -R "$REPO/bin" "$REPO/core" "$REPO/agents" "$REPO/install.sh" "$REPO/package.json" "$REPO/LICENSE" "$AGENT_RTL_HOME/"
+  cp -R "$REPO/wrapper/bin" "$REPO/wrapper/package.json" "$REPO/wrapper/package-lock.json" "$AGENT_RTL_HOME/wrapper/"
+  touch "$AGENT_RTL_HOME/.installed" "$AGENT_RTL_HOME/.agent-rtl-home"
+}
+
+installed_list() { cat "$AGENT_RTL_HOME/.installed" 2>/dev/null || true; }
+
+record() {
+  local action="$1" agent="$2" list
+  list="$(installed_list | grep -vx "$agent" || true)"
+  [ "$action" = add ] && list="$(printf '%s\n%s\n' "$list" "$agent")"
+  [ -d "$AGENT_RTL_HOME" ] || return 0
+  printf '%s\n' "$list" | awk 'NF' >"$AGENT_RTL_HOME/.installed"
+}
+
+# Once no agent is left, the installed copy goes too. Only a folder this
+# script created (marked .agent-rtl-home) is removed, never a source checkout.
+remove_runtime_if_unused() {
+  [ -d "$AGENT_RTL_HOME" ] && [ -z "$(installed_list | awk 'NF')" ] || return 0
+  [ -e "$AGENT_RTL_HOME/.agent-rtl-home" ] && [ ! -e "$AGENT_RTL_HOME/.git" ] || return 0
+  rm -rf "$AGENT_RTL_HOME" && say "  removed $AGENT_RTL_HOME"
+}
+
+show_status() {
+  say "agent-rtl status"
+  local agent state
+  for agent in "${AGENTS[@]}"; do
+    case "$agent" in
+      claude) claude plugin list 2>/dev/null | grep -q "$CLAUDE_PLUGIN" && state="installed" || state="-" ;;
+      opencode) [ -e "$OPENCODE_PLUGINS/agent-rtl/.agent-rtl" ] && state="installed" || state="-" ;;
+      codex | agy)
+        if aliased_agents | grep -qx "$agent"; then state="installed ('$agent' runs through agent-rtl)"
+        elif installed_list | grep -qx "$agent"; then state="installed (run: agent-rtl $agent)"
+        else state="-"; fi ;;
+    esac
+    printf '  %-34s %s\n' "$(label "$agent")" "$state"
+  done
+  [ -d "$AGENT_RTL_HOME" ] && say "  files: $AGENT_RTL_HOME"
+}
+
 # ---- Claude Code: the claude-code-cli-rtl mod, installed with claude's own
 # plugin commands so Claude Code keeps it updated.
 
@@ -98,12 +155,12 @@ version_at_least() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$
 
 install_claude() {
   step "Claude Code"
-  have claude || { warn "claude not found; skipping"; return; }
+  have claude || { warn "claude not found; skipping"; return 1; }
   local version
   version="$(claude --version 2>/dev/null | awk '{print $1}')"
   if ! version_at_least "$version" "$CLAUDE_MIN_VERSION"; then
     warn "Claude Code $version is older than $CLAUDE_MIN_VERSION; run 'claude update' first"
-    return
+    return 1
   fi
   claude plugin marketplace add "$CLAUDE_MARKETPLACE_REPO" >/dev/null 2>&1 || true
   claude plugin marketplace update "$CLAUDE_MARKETPLACE" >/dev/null
@@ -202,7 +259,7 @@ write_block() {
     {
       echo "$BLOCK_START"
       echo "# Run these agents through agent-rtl (right-to-left text). Managed by"
-      echo "# $REPO/install.sh; AGENT_RTL=0 runs them untouched."
+      echo "# agent-rtl: 'agent-rtl uninstall codex agy' removes it; AGENT_RTL=0 skips it once."
       local agent
       for agent in "$@"; do echo "$agent() { \"$BIN_DIR/agent-rtl\" $agent \"\$@\"; }"; done
       echo "$BLOCK_END"
@@ -213,19 +270,23 @@ write_block() {
   say "  updated $rc (open a new shell to use it)"
 }
 
-wrapper_ready=0
-install_wrapper_command() {
-  [ "$wrapper_ready" = 1 ] && return
-  have node || { warn "Node.js 20+ is required for the wrapper"; return 1; }
+# The agent-rtl command (update, status, uninstall, and the wrapper), linked
+# into BIN_DIR from the installed copy.
+link_command() {
+  have node || { warn "Node.js 20+ is required for the agent-rtl command"; return 1; }
   local major
   major="$(node -p 'process.versions.node.split(".")[0]')"
-  [ "$major" -ge 20 ] || { warn "Node.js $major found; the wrapper needs 20+"; return 1; }
-  (cd "$REPO/wrapper" && npm ci --omit=dev --no-audit --no-fund --silent)
+  [ "$major" -ge 20 ] || { warn "Node.js $major found; agent-rtl needs 20+"; return 1; }
   mkdir -p "$BIN_DIR"
-  chmod +x "$REPO/wrapper/bin/agent-rtl.mjs"
-  ln -sf "$REPO/wrapper/bin/agent-rtl.mjs" "$BIN_DIR/agent-rtl"
-  say "  installed $BIN_DIR/agent-rtl"
+  chmod +x "$AGENT_RTL_HOME/bin/agent-rtl.mjs"
+  ln -sf "$AGENT_RTL_HOME/bin/agent-rtl.mjs" "$BIN_DIR/agent-rtl"
   case ":$PATH:" in *":$BIN_DIR:"*) ;; *) warn "$BIN_DIR is not in PATH" ;; esac
+}
+
+wrapper_ready=0
+install_wrapper_deps() {
+  [ "$wrapper_ready" = 1 ] && return
+  (cd "$AGENT_RTL_HOME/wrapper" && npm ci --omit=dev --no-audit --no-fund --silent)
   wrapper_ready=1
 }
 
@@ -233,7 +294,7 @@ install_wrapped() {
   local agent="$1"
   step "$(label "$agent")"
   have "$agent" || warn "$agent not found; installing the wrapper anyway"
-  install_wrapper_command || return
+  install_wrapper_deps || return
   say "  run it with: agent-rtl $agent"
   if [ "$alias_wrapped" = 1 ] && confirm "Make the plain '$agent' command run through agent-rtl?"; then
     local agents
@@ -248,9 +309,6 @@ uninstall_wrapped() {
   local agents
   mapfile -t agents < <(aliased_agents | grep -vx "$agent" || true)
   write_block "${agents[@]}"
-  if [ "${#agents[@]}" -eq 0 ] && [ -L "$BIN_DIR/agent-rtl" ]; then
-    rm -f "$BIN_DIR/agent-rtl" && say "  removed $BIN_DIR/agent-rtl"
-  fi
 }
 
 # ---- main
@@ -259,6 +317,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --all) read -r -a selected <<<"$(installed_agents | tr '\n' ' ')" ;;
     --uninstall) uninstall=1 ;;
+    --status) status=1 ;;
     --no-alias) alias_wrapped=0 ;;
     -y | --yes) assume_yes=1 ;;
     -h | --help) usage; exit 0 ;;
@@ -268,17 +327,39 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
+[ "$status" = 1 ] && { show_status; exit 0; }
 [ "${#selected[@]}" -eq 0 ] && menu
 [ "${#selected[@]}" -eq 0 ] && { say "Nothing chosen."; exit 0; }
 
 mapfile -t selected < <(printf '%s\n' "${selected[@]}" | awk '!seen[$0]++')
+if [ "$uninstall" = 0 ]; then
+  copy_runtime
+  link_command || exit 1
+fi
 for agent in "${selected[@]}"; do
-  case "$agent" in
-    claude) if [ "$uninstall" = 1 ]; then uninstall_claude; else install_claude; fi ;;
-    opencode) if [ "$uninstall" = 1 ]; then uninstall_opencode; else install_opencode; fi ;;
-    codex | agy) if [ "$uninstall" = 1 ]; then uninstall_wrapped "$agent"; else install_wrapped "$agent"; fi ;;
-  esac
+  if [ "$uninstall" = 1 ]; then
+    case "$agent" in
+      claude) uninstall_claude ;;
+      opencode) uninstall_opencode ;;
+      codex | agy) uninstall_wrapped "$agent" ;;
+    esac
+    record remove "$agent"
+  else
+    case "$agent" in
+      claude) install_claude ;;
+      opencode) install_opencode ;;
+      codex | agy) install_wrapped "$agent" ;;
+    esac && record add "$agent"
+  fi
 done
 
 step "Done"
-say "Keep your terminal's own bidi/RTL option off; agent-rtl does the reordering."
+if [ "$uninstall" = 1 ]; then
+  if [ -z "$(installed_list | awk 'NF')" ]; then
+    [ -L "$BIN_DIR/agent-rtl" ] && rm -f "$BIN_DIR/agent-rtl" && say "  removed $BIN_DIR/agent-rtl"
+    remove_runtime_if_unused
+  fi
+else
+  say "Update later with: agent-rtl update"
+  say "Keep your terminal's own bidi/RTL option off; agent-rtl does the reordering."
+fi

@@ -1,9 +1,28 @@
 {
   "name": "agent-rtl",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Right-to-left Arabic, Persian and Hebrew for terminal coding agents (Claude Code, opencode, Codex, agy)",
   "license": "MIT",
+  "repository": "github:mehbylabs/agent-rtl",
+  "bin": {
+    "agent-rtl": "bin/agent-rtl.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "core",
+    "agents",
+    "wrapper/bin",
+    "wrapper/package.json",
+    "wrapper/package-lock.json",
+    "install.sh",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "test": "node --test test/*.test.mjs && bash test/install.test.sh"
   }

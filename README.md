@@ -37,12 +37,13 @@ keep the original text.
 
 ## Install
 
+One command, straight from GitHub (no clone needed):
+
 ```bash
-git clone https://github.com/mehbylabs/agent-rtl.git && cd agent-rtl
-./install.sh
+npx -y github:mehbylabs/agent-rtl
 ```
 
-The installer shows which agents are installed here and asks what to set up:
+It shows which agents are installed here and asks what to set up:
 
 ```
 Install for:
@@ -57,14 +58,32 @@ Choose (e.g. 1, or 3 4):
 Or skip the menu:
 
 ```bash
-./install.sh --all            # every agent found, asks a few yes/no questions
-./install.sh --all -y         # same, no questions
-./install.sh opencode codex   # specific agents
-./install.sh --uninstall agy  # remove from one agent
-./install.sh --help
+npx -y github:mehbylabs/agent-rtl install --all -y          # every agent found, no questions
+npx -y github:mehbylabs/agent-rtl install opencode codex    # specific agents
 ```
 
-After installing:
+After that, the `agent-rtl` command is installed:
+
+```bash
+agent-rtl status              # which agents have it
+agent-rtl update              # newest version from GitHub, same agents
+agent-rtl uninstall agy -y    # remove from one agent (or --all)
+```
+
+### As a skill
+
+Let your agent install, update or remove it. Add the skill with
+[skills](https://skills.sh):
+
+```bash
+npx skills add mehbylabs/agent-rtl
+```
+
+Then ask your agent, for example: *"install agent-rtl"*, *"update agent-rtl"*,
+or *"Arabic shows reversed in my terminal"*. The skill asks whether to set it
+up for all your agents or specific ones.
+
+After installing or updating:
 
 | Agent | Next step |
 |---|---|
@@ -72,8 +91,9 @@ After installing:
 | opencode | Close all opencode windows, then run `opencode service restart`. |
 | Codex, agy | Open a new shell. `codex` and `agy` now run through agent-rtl. If you used `--no-alias`, run `agent-rtl codex` instead. |
 
-Requirements: bash, plus Node.js 20+ for the Codex/agy wrapper. Claude Code
-needs version 2.1.287 or newer.
+Requirements: Node.js 20+ and bash (Linux, macOS, WSL). Claude Code needs
+version 2.1.287 or newer. The installed files live in
+`~/.local/share/agent-rtl`, and the `agent-rtl` command in `~/.local/bin`.
 
 ## How each agent is fixed
 
@@ -103,8 +123,8 @@ agy() { "$HOME/.local/bin/agent-rtl" agy "$@"; }
 # <<< agent-rtl <<<
 ```
 
-`./install.sh --uninstall codex agy` removes the block. `AGENT_RTL=0 codex`
-runs the CLI once without the wrapper.
+`agent-rtl uninstall codex agy` removes the block. `AGENT_RTL=0 codex` runs
+the CLI once without the wrapper.
 
 ## Terminal settings
 
@@ -128,19 +148,23 @@ runs the CLI once without the wrapper.
 ## Layout
 
 ```
-core/rtl-core.mjs        shared engine: regions, bidi reorder, Arabic joining, mirroring
-core/bidi.mjs            bidi-js 1.1.0 (MIT, vendored unmodified)
-agents/opencode/tui.js   opencode TUI plugin (installed with core/*)
+bin/agent-rtl.mjs          the agent-rtl command (npx entry point): install, update, status, uninstall, run
+core/rtl-core.mjs          shared engine: regions, bidi reorder, Arabic joining, mirroring
+core/bidi.mjs              bidi-js 1.1.0 (MIT, vendored unmodified)
+agents/opencode/tui.js     opencode TUI plugin (installed with core/*)
 wrapper/bin/agent-rtl.mjs  Codex / agy wrapper (node-pty + @xterm/headless)
-install.sh               installer / uninstaller
-test/                    npm test: core unit tests + sandboxed installer test
-docs/assets/             README images
+install.sh                 installer / uninstaller used by the command
+skills/agent-rtl/SKILL.md  agent skill (npx skills add mehbylabs/agent-rtl)
+test/                      npm test: core unit tests + sandboxed installer test
+docs/assets/               README images
 ```
 
 ## Development
 
 ```bash
+git clone https://github.com/mehbylabs/agent-rtl.git && cd agent-rtl
 npm test                      # core tests + installer test in a throwaway HOME
+./install.sh                  # install from this checkout (same options as `agent-rtl install`)
 ```
 
 ## Credits
